@@ -5,7 +5,7 @@
    ever need a different backend.
    =========================================================== */
 
-const API_BASE = "/api";
+const API_BASE = "https://your-volt-api.onrender.com/api";
 const CURRENT_USER_KEY = "volt_current_user";
 
 // ---------------- low-level API helper ----------------
