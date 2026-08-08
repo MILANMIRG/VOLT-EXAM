@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VOLT — Student Panel </title>
+<link rel="icon" type="image/png" href="logo.png">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="app-shell" id="shell">
+  <div id="navbarMount"></div>
+
+  <div class="container" id="mainContainer" style="padding-top:30px; padding-bottom:60px; flex:1; width:100%;">
+
+    <!-- ================= DASHBOARD ================= -->
+    <div class="view" id="view-dashboard">
+      <div class="page-head">
+        <div>
+          <span class="eyebrow">Welcome back</span>
+          <h2 id="welcomeName">Student</h2>
+          <div class="sub">Pick a test below. Once you start, the timer can't be paused.</div>
+        </div>
+      </div>
+
+      <div class="stat-grid">
+        <div class="stat-card">
+          <div class="stat-icon" style="background:var(--accent-dim);">📘</div>
+          <div class="stat-num" id="dashTestsCount">0</div>
+          <div class="stat-label">Tests available</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon" style="background:var(--success-dim);">✅</div>
+          <div class="stat-num" id="dashAttempts">0</div>
+          <div class="stat-label">Attempts completed</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon" style="background:var(--charge-dim);">⚡</div>
+          <div class="stat-num" id="dashAvg">—</div>
+          <div class="stat-label">Average score</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon" style="background:var(--accent-dim);">🏆</div>
+          <div class="stat-num" id="dashBest">—</div>
+          <div class="stat-label">Best score</div>
+        </div>
+      </div>
+
+      <div class="test-grid" id="testGrid"></div>
+    </div>
+
+    <!-- ================= RESULTS HISTORY ================= -->
+    <div class="view" id="view-results">
+      <div class="page-head">
+        <div>
+          <span class="eyebrow">Performance</span>
+          <h2>My results</h2>
+          <div class="sub">Every attempt you've submitted, with a full answer review.</div>
+        </div>
+      </div>
+      <div id="resultsHistoryWrap"></div>
+    </div>
+
+    <!-- ================= REVIEW (past attempt) ================= -->
+    <div class="view" id="view-review">
+      <button class="btn btn-ghost btn-sm" id="backToResults" style="margin-bottom:18px;">← Back to results</button>
+      <div class="page-head">
+        <div>
+          <span class="eyebrow" id="reviewSubject">Subject</span>
+          <h2 id="reviewTitle">Test review</h2>
+          <div class="sub" id="reviewMeta"></div>
+        </div>
+      </div>
+      <div id="reviewList"></div>
+    </div>
+
+    <!-- ================= RESULT (just submitted) ================= -->
+    <div class="view" id="view-result">
+      <div class="card card-raised result-hero" style="max-width:560px; margin:20px auto;">
+        <div class="result-ring" id="resultRing">
+          <span class="pct" id="resultPct">0%</span>
+          <span class="lbl">Score</span>
+        </div>
+        <h2 id="resultHeadline">Test submitted</h2>
+        <p class="text-dim" style="margin-top:8px;" id="resultTestName"></p>
+        <div class="result-breakdown">
+          <div class="rb-item"><b id="rbCorrect" style="color:#6fe0a8;">0</b><span>Correct</span></div>
+          <div class="rb-item"><b id="rbWrong" style="color:#ff8f8f;">0</b><span>Wrong</span></div>
+          <div class="rb-item"><b id="rbSkipped" style="color:var(--text-faint);">0</b><span>Skipped</span></div>
+        </div>
+        <div style="display:flex; gap:12px; justify-content:center; margin-top:30px;">
+          <button class="btn btn-outline" id="resultReviewBtn">Review answers</button>
+          <button class="btn btn-primary" id="resultDoneBtn">Back to dashboard</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <footer class="mini">VOLT Examination Portal · Student Panel <BR> &copy VOLT Learning Pvt Limited  </footer>
+</div>
+
+<!-- ================= TEST TAKING (full overlay) ================= -->
+<div id="examOverlay" style="display:none;">
+  <div class="exam-bar">
+    <div class="logo">
+      <div class="logo-mark" id="examLogoMark"></div>
+      <div>
+        <div class="logo-word" style="font-size:16px;">VOLT</div>
+        <div class="logo-sub" id="examTestTitle" style="font-size:10.5px;">Test</div>
+      </div>
+    </div>
+    <div class="exam-timer" id="examTimer">10:00</div>
+  </div>
+
+  <div class="exam-body">
+    <div class="q-panel">
+      <div class="q-index" id="examQIndex">Question 1 of 5</div>
+      <div class="q-text" id="examQText">Question text</div>
+      <div id="examOptions"></div>
+      <div class="exam-nav">
+        <button class="btn btn-ghost" id="examPrev">← Previous</button>
+        <div style="display:flex; gap:10px;">
+          <button class="btn btn-outline" id="examSubmit">Submit test</button>
+          <button class="btn btn-primary" id="examNext">Next →</button>
+        </div>
+      </div>
+    </div>
+    <div class="q-side">
+      <div class="q-palette-card">
+        <h4 id="examProgressLabel">0 of 5 answered</h4>
+        <div class="palette-grid" id="examPalette"></div>
+        <div class="legend">
+          <span><i style="background:var(--success-dim); border:1px solid rgba(47,191,118,0.4);"></i> Answered</span>
+          <span><i style="background:var(--purple-900); border:1px solid var(--border-strong);"></i> Not answered</span>
+        </div>
+      </div>
+      <div class="q-palette-card">
+        <h4>Instructions</h4>
+        <p class="text-faint" style="font-size:12.5px; line-height:1.6;">Each question has one correct option. Use Next/Previous or the number grid to move around. Submitting is final — you can review answers afterward.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= CONFIRM MODALS ================= -->
+<div class="modal-backdrop" id="startModalBackdrop">
+  <div class="modal">
+    <h3 id="startModalTitle">Start test</h3>
+    <p id="startModalBody">You're about to start this test. The timer begins immediately and can't be paused.</p>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="startModalCancel">Cancel</button>
+      <button class="btn btn-primary" id="startModalConfirm">Start now</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="submitModalBackdrop">
+  <div class="modal">
+    <h3>Submit test?</h3>
+    <p id="submitModalBody">You've answered some questions. Once submitted, you can't change your answers.</p>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="submitModalCancel">Keep working</button>
+      <button class="btn btn-primary" id="submitModalConfirm">Submit</button>
+    </div>
+  </div>
+</div>
+
+<script src="app.js"></script>
+<script src="student.js"></script>
+</body>
+</html>

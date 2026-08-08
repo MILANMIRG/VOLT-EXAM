@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VOLT — Admin Panel</title>
+<link rel="stylesheet" href="style.css">
+<link rel="icon" type="image/png" href="logo.png">
+</head>
+<body>
+
+<div class="app-shell">
+  <div id="navbarMount"></div>
+
+  <div class="container" style="padding-top:30px; padding-bottom:60px; flex:1; width:100%;">
+
+    <!-- ================= OVERVIEW ================= -->
+    <div class="view" id="view-overview">
+      <div class="page-head">
+        <div>
+          <span class="eyebrow">Control room</span>
+          <h2>Overview</h2>
+          <div class="sub">A live snapshot of tests, students, and attempts.</div>
+        </div>
+        <button class="btn btn-primary" id="ovNewTestBtn">+ New test</button>
+      </div>
+
+      <div class="stat-grid">
+        <div class="stat-card"><div class="stat-icon" style="background:var(--accent-dim);">📘</div><div class="stat-num" id="ovTests">0</div><div class="stat-label">Published tests</div></div>
+        <div class="stat-card"><div class="stat-icon" style="background:var(--success-dim);">🎓</div><div class="stat-num" id="ovStudents">0</div><div class="stat-label">Registered students</div></div>
+        <div class="stat-card"><div class="stat-icon" style="background:var(--charge-dim);">📝</div><div class="stat-num" id="ovAttempts">0</div><div class="stat-label">Attempts submitted</div></div>
+        <div class="stat-card"><div class="stat-icon" style="background:var(--accent-dim);">⚡</div><div class="stat-num" id="ovAvg">—</div><div class="stat-label">Average score</div></div>
+      </div>
+
+      <div class="card" style="margin-bottom:24px;">
+        <div class="flex-between mb-18">
+          <h3 style="font-size:16px;">Recent attempts</h3>
+          <a href="#results" class="btn btn-ghost btn-sm">View all</a>
+        </div>
+        <div id="ovRecentWrap"></div>
+      </div>
+
+      <div class="card">
+        <div class="flex-between mb-18">
+          <h3 style="font-size:16px;">Test performance</h3>
+          <a href="#tests" class="btn btn-ghost btn-sm">Manage tests</a>
+        </div>
+        <div id="ovTestPerfWrap"></div>
+      </div>
+    </div>
+
+    <!-- ================= MANAGE TESTS (list) ================= -->
+    <div class="view" id="view-tests">
+      <div class="page-head">
+        <div>
+          <span class="eyebrow">Content</span>
+          <h2>Manage tests</h2>
+          <div class="sub">Create, edit, and remove MCQ tests visible to students.</div>
+        </div>
+        <button class="btn btn-primary" id="testsNewBtn">+ New test</button>
+      </div>
+      <div id="testsListWrap"></div>
+    </div>
+
+    <!-- ================= TEST FORM (create/edit) ================= -->
+    <div class="view" id="view-testform">
+      <button class="btn btn-ghost btn-sm" id="testFormBack" style="margin-bottom:18px;">← Back to tests</button>
+      <div class="page-head">
+        <div>
+          <span class="eyebrow" id="testFormEyebrow">New test</span>
+          <h2 id="testFormTitle">Create a test</h2>
+          <div class="sub">Fill in the details, then add as many MCQ questions as you need.</div>
+        </div>
+      </div>
+
+      <div class="card mb-18">
+        <div class="qrow-2">
+          <div class="field">
+            <label for="tfTitle">Test title</label>
+            <input type="text" id="tfTitle" placeholder="e.g. Data Structures — Unit 2">
+          </div>
+          <div class="field">
+            <label for="tfSubject">Subject</label>
+            <input type="text" id="tfSubject" placeholder="e.g. Computer Science">
+          </div>
+        </div>
+        <div class="field" style="max-width:220px;">
+          <label for="tfDuration">Duration (minutes)</label>
+          <input type="number" id="tfDuration" min="1" value="15">
+        </div>
+      </div>
+
+      <div class="card mb-18" style="background:var(--surface-raised); border-style:dashed;">
+        <div class="flex-between" style="gap:16px; flex-wrap:wrap;">
+          <div style="flex:1; min-width:220px;">
+            <h3 style="font-size:15.5px; display:flex;color:white; align-items:center; gap:8px;">📥 Import questions from Excel</h3>
+            <p class="text-faint" style="font-size:12.5px; margin-top:5px; line-height:1.6;">
+              Upload an .xlsx, .xls, or .csv with columns
+              <strong>Question, Option A–D, Correct Answer (A/B/C/D), Marks</strong>.
+              New rows are added to the questions below — nothing existing is overwritten until you save.
+            </p>
+          </div>
+          <div style="display:flex; gap:10px; flex-wrap:wrap;">
+            <a class="btn btn-ghost btn-sm" href="volt-question-import-template.xlsx" download>Download template</a>
+            <button class="btn btn-charge btn-sm" id="tfImportBtn" type="button">Import file</button>
+            <input type="file" id="tfImportInput" accept=".xlsx,.xls,.csv" style="display:none;">
+          </div>
+        </div>
+        <div id="tfImportStatus" style="display:none; margin-top:14px;"></div>
+      </div>
+
+      <div class="flex-between mb-18">
+        <h3 style="font-size:16px;">Questions <span class="text-faint" id="tfQCount" style="font-weight:400; font-size:13px;">(0)</span></h3>
+        <button class="btn btn-outline btn-sm" id="tfAddQ">+ Add question</button>
+      </div>
+      <div id="tfQuestionsWrap"></div>
+      <button class="btn btn-outline btn-block" id="tfAddQ2" style="margin-top:6px;">+ Add another question</button>
+
+      <div class="divider"></div>
+      <div class="field-error" id="tfError" style="display:none; margin-bottom:14px;"></div>
+      <div style="display:flex; gap:12px;">
+        <button class="btn btn-primary" id="tfSave">Save test</button>
+        <button class="btn btn-ghost" id="tfCancel">Cancel</button>
+      </div>
+    </div>
+
+    <!-- ================= STUDENTS ================= -->
+    <div class="view" id="view-students">
+      <div class="page-head">
+        <div>
+          <span class="eyebrow">People</span>
+          <h2>Students</h2>
+          <div class="sub">Everyone who has registered a student account.</div>
+        </div>
+      </div>
+      <div id="studentsWrap"></div>
+    </div>
+
+    <!-- ================= RESULTS / ANALYTICS ================= -->
+    <div class="view" id="view-results">
+      <div class="page-head">
+        <div>
+          <span class="eyebrow">Analytics</span>
+          <h2>Results</h2>
+          <div class="sub">Every submitted attempt across all tests.</div>
+        </div>
+        <select id="resultsFilter" style="background:var(--surface); border:1px solid var(--border-strong); color:var(--text); padding:10px 14px; border-radius:10px; font-size:13.5px;">
+          <option value="">All tests</option>
+        </select>
+      </div>
+      <div id="resultsWrap"></div>
+    </div>
+
+  </div>
+
+  <footer class="mini">VOLT Examination Portal · Admin Panel <BR> &copy VOLT Learning Pvt Limited  </footer>
+</div>
+
+<div class="modal-backdrop" id="deleteModalBackdrop">
+  <div class="modal">
+    <h3>Delete this test?</h3>
+    <p id="deleteModalBody">This can't be undone. Past results tied to it will remain in the results log for reference.</p>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="deleteModalCancel">Cancel</button>
+      <button class="btn btn-danger" id="deleteModalConfirm">Delete test</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="app.js"></script>
+<script>
+const user = requireRole('admin');
+</script>
+<script src="admin.js"></script>
+</body>
+</html>

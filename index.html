@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" type="image/png" href="logo.png">
+<title>VOLT — Online Examination</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="app-shell">
+  <div class="navbar">
+    <div class="navbar-inner">
+      <div class="logo">
+        <div class="logo-mark" id="logoMarkTarget"></div>
+        <div>
+          <div class="logo-word">VOLT</div>
+          <div class="logo-sub">Exam Portal</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+     
+  <div class="auth-form-panel">
+
+    <div class="role-toggle" id="roleToggle">
+      <button type="button" class="active" data-role="student">Student</button>
+      <button type="button" data-role="admin">Admin</button>
+    </div>
+
+    <!-- LOGIN FORM -->
+    <div id="loginBlock">
+      <h2 style="font-size:22px; margin-bottom:6px;" id="loginTitle">Student login</h2>
+      <p class="text-faint" style="font-size:13.5px; margin-bottom:22px;" id="loginSub">Sign in to view your tests and results.</p>
+
+      <form id="loginForm">
+        <div class="field">
+          <label for="loginEmail">Email</label>
+          <input type="email" id="loginEmail" placeholder="you@example.com" required>
+        </div>
+        <div class="field">
+          <label for="loginPassword">Password</label>
+          <input type="password" id="loginPassword" placeholder="••••••••" required>
+        </div>
+        <div class="field-error" id="loginError" style="display:none;"></div>
+        <button type="submit" class="btn btn-primary btn-block">Log in</button>
+      </form>
+      <div class="form-switch">
+        Don't have an account? <button type="button" id="toRegister">Register as student</button>
+      </div>
+    </div>
+
+    <!-- REGISTER FORM -->
+    <div id="registerBlock" style="display:none;">
+      <h2 style="font-size:22px; margin-bottom:6px;">Create student account</h2>
+      <p class="text-faint" style="font-size:13.5px; margin-bottom:22px;">Registration is open to students only. Admin accounts are provisioned by VOLT.</p>
+
+      <form id="registerForm">
+        <div class="field">
+          <label for="regName">Full name</label>
+          <input type="text" id="regName" placeholder="Milan Mirg" required>
+        </div>
+        <div class="field">
+          <label for="regEmail">Email</label>
+          <input type="email" id="regEmail" placeholder="you@example.com" required>
+        </div>
+        <div class="field">
+          <label for="regPassword">Password</label>
+          <input type="password" id="regPassword" placeholder="At least 6 characters" minlength="6" required>
+        </div>
+        <div class="field-error" id="registerError" style="display:none;"></div>
+        <button type="submit" class="btn btn-primary btn-block">Create account</button>
+      </form>
+
+      <div class="form-switch">
+        Already have an account? <button type="button" id="toLogin">Log in</button>
+      </div>
+    </div>
+
+  </div>
+
+  <footer class="mini"> Volt Examination Portal<BR> &copy VOLT Learning Pvt Limited  </footer>
+</div>
+
+<script src="app.js"></script>
+<script>
+  document.getElementById('logoMarkTarget').innerHTML = logoMarkSVG();
+
+  // If already logged in, bounce to the right panel
+  (function(){
+    const u = currentUser();
+    if (u) window.location.href = u.role === 'admin' ? 'admin.html' : 'student.html';
+  })();
+
+  let selectedRole = 'student';
+  const roleToggle = document.getElementById('roleToggle');
+  const loginTitle = document.getElementById('loginTitle');
+  const loginSub = document.getElementById('loginSub');
+  const toRegisterWrap = document.querySelector('#loginBlock .form-switch');
+
+  roleToggle.addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-role]');
+    if (!btn) return;
+    selectedRole = btn.dataset.role;
+    [...roleToggle.children].forEach(b => b.classList.toggle('active', b === btn));
+    if (selectedRole === 'admin'){
+      loginTitle.textContent = 'Admin login';
+      loginSub.textContent = 'Sign in to manage tests, students, and results.';
+      toRegisterWrap.style.display = 'none';
+    } else {
+      loginTitle.textContent = 'Student login';
+      loginSub.textContent = 'Sign in to view your tests and results.';
+      toRegisterWrap.style.display = 'block';
+    }
+    // switch back to login block if register was open
+    document.getElementById('loginBlock').style.display = 'block';
+    document.getElementById('registerBlock').style.display = 'none';
+  });
+
+  document.getElementById('toRegister').addEventListener('click', () => {
+    document.getElementById('loginBlock').style.display = 'none';
+    document.getElementById('registerBlock').style.display = 'block';
+  });
+  document.getElementById('toLogin').addEventListener('click', () => {
+    document.getElementById('registerBlock').style.display = 'none';
+    document.getElementById('loginBlock').style.display = 'block';
+  });
+
+  document.getElementById('loginForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const email = document.getElementById('loginEmail').value.trim();
+    const password = document.getElementById('loginPassword').value;
+    const errEl = document.getElementById('loginError');
+    const submitBtn = e.target.querySelector('button[type="submit"]');
+    errEl.style.display = 'none';
+    submitBtn.disabled = true;
+    const res = await login(email, password, selectedRole);
+    submitBtn.disabled = false;
+    if (!res.ok){
+      errEl.textContent = res.error;
+      errEl.style.display = 'block';
+      return;
+    }
+    window.location.href = selectedRole === 'admin' ? 'admin.html' : 'student.html';
+  });
+
+  document.getElementById('registerForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const name = document.getElementById('regName').value.trim();
+    const email = document.getElementById('regEmail').value.trim();
+    const password = document.getElementById('regPassword').value;
+    const errEl = document.getElementById('registerError');
+    const submitBtn = e.target.querySelector('button[type="submit"]');
+    errEl.style.display = 'none';
+    submitBtn.disabled = true;
+    const res = await registerStudent(name, email, password);
+    submitBtn.disabled = false;
+    if (!res.ok){
+      errEl.textContent = res.error;
+      errEl.style.display = 'block';
+      return;
+    }
+    window.location.href = 'student.html';
+  });
+</script>
+</body>
+</html>
