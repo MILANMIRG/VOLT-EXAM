@@ -158,9 +158,12 @@
           <h2>Results</h2>
           <div class="sub">Every submitted attempt across all tests.</div>
         </div>
-        <select id="resultsFilter" style="background:var(--surface); border:1px solid var(--border-strong); color:var(--text); padding:10px 14px; border-radius:10px; font-size:13.5px;">
-          <option value="">All tests</option>
-        </select>
+        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+          <select id="resultsFilter" style="background:var(--surface); border:1px solid var(--border-strong); color:var(--text); padding:10px 14px; border-radius:10px; font-size:13.5px;">
+            <option value="">All tests</option>
+          </select>
+          <button class="btn btn-charge btn-sm" id="resultsExportBtn" type="button">⬇ Export to Excel</button>
+        </div>
       </div>
       <div id="resultsWrap"></div>
     </div>

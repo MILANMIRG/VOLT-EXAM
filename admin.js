@@ -720,6 +720,51 @@ document.getElementById("resultsFilter").addEventListener("change", (e) => {
   loadResults(e.target.value || undefined);
 });
 
+// ---------------- results: export to excel ----------------
+document.getElementById("resultsExportBtn").addEventListener("click", () => {
+  if (!state.results.length) {
+    toast("No results to export.", "error");
+    return;
+  }
+
+  const filterSelect = document.getElementById("resultsFilter");
+  const selectedLabel = filterSelect.value
+    ? filterSelect.options[filterSelect.selectedIndex].textContent
+    : "All tests";
+
+  const rows = state.results.map((r) => ({
+    Student: r.userId?.name || "Unknown",
+    Email: r.userId?.email || "",
+    Test: r.examId?.title || "Deleted test",
+    Subject: r.examId?.subject || "",
+    Score: r.score,
+    "Total Marks": r.totalMarks,
+    "Percentage": r.totalMarks ? Math.round((r.score / r.totalMarks) * 100) : 0,
+    Submitted: formatDate(r.submittedAt),
+  }));
+
+  const sheet = XLSX.utils.json_to_sheet(rows);
+  sheet["!cols"] = [
+    { wch: 22 }, // Student
+    { wch: 28 }, // Email
+    { wch: 28 }, // Test
+    { wch: 18 }, // Subject
+    { wch: 8 },  // Score
+    { wch: 12 }, // Total Marks
+    { wch: 12 }, // Percentage
+    { wch: 20 }, // Submitted
+  ];
+
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, sheet, "Results");
+
+  const safeLabel = selectedLabel.replace(/[\\/:*?"<>|]/g, "").trim() || "All-tests";
+  const stamp = new Date().toISOString().slice(0, 10);
+  XLSX.writeFile(workbook, `VOLT-results-${safeLabel}-${stamp}.xlsx`);
+
+  toast(`Exported ${rows.length} result${rows.length === 1 ? "" : "s"}.`);
+});
+
 // ---------------- shared markup helper ----------------
 function emptyState(glyph, title, body) {
   return `<div class="empty-state">
