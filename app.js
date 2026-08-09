@@ -1,11 +1,6 @@
-/* ===========================================================
-   VOLT — shared frontend layer
-   Talks to the Express/MongoDB API in server.js. Every page
-   only touches the functions below — swap these out if you
-   ever need a different backend.
-   =========================================================== */
 
-const API_BASE = "https://your-volt-api.onrender.com/api";
+
+const API_BASE = "https://YOUR-RENDER-SERVICE.onrender.com/api";
 const CURRENT_USER_KEY = "volt_current_user";
 
 // ---------------- low-level API helper ----------------
