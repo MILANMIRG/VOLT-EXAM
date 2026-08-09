@@ -528,3 +528,18 @@ tr:hover td{
 }
 footer.mini{color:#8a8397;}
 
+/* ---------- Admin: bulk-select checkboxes (Manage tests panel) ---------- */
+.test-select-cb{
+  width:18px;
+  height:18px;
+  accent-color:var(--accent);
+  cursor:pointer;
+  flex-shrink:0;
+}
+
+#testsSelectAll{
+  width:16px;
+  height:16px;
+  accent-color:var(--accent);
+  cursor:pointer;
+}

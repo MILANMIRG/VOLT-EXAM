@@ -184,6 +184,13 @@ app.get("/api/results/user/:userId", asyncHandler(async (req, res) => {
   res.json({ results });
 }));
 
+// Remove a single result from the results log.
+app.delete("/api/results/:id", asyncHandler(async (req, res) => {
+  const result = await Result.findByIdAndDelete(req.params.id);
+  if (!result) return res.status(404).json({ error: "Result not found." });
+  res.json({ ok: true });
+}));
+
 // ------------------------------------------------------------------
 // Student / admin directory + overview
 // ------------------------------------------------------------------
@@ -204,6 +211,16 @@ app.get("/api/students", asyncHandler(async (req, res) => {
   });
 
   res.json({ students: rows });
+}));
+
+// Remove a student account. Their past results are left in place (same
+// "keep history, drop the source" behaviour as deleting an exam) so the
+// results log still shows something sensible in place of the account,
+// the same way it already handles a deleted exam via "Deleted test".
+app.delete("/api/students/:id", asyncHandler(async (req, res) => {
+  const student = await User.findOneAndDelete({ _id: req.params.id, role: "student" });
+  if (!student) return res.status(404).json({ error: "Student not found." });
+  res.json({ ok: true });
 }));
 
 app.get("/api/overview", asyncHandler(async (req, res) => {

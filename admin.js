@@ -1,7 +1,6 @@
 /* ===========================================================
    VOLT — Admin panel logic
-   Depends on app.js (API client, auth, navbar, toast) which is
-   loaded first. `user` is set in the inline script in admin.html.
+   Depends on app.js (API client, auth, navbar, ) 
    =========================================================== */
 
 const VIEWS = ["overview", "tests", "testform", "students", "results"];
@@ -13,6 +12,10 @@ const state = {
   overview: null,
   editingExamId: null,
   formQuestions: [], // [{id,text,options:[...4],correct,marks}]
+
+  // bulk-select state for the "Manage tests" list
+  selectedTests: new Set(),
+  testsCategoryFilter: "",
 };
 
 let qCounter = 0;
@@ -20,6 +23,10 @@ function nextQId() {
   qCounter += 1;
   return `q${Date.now()}_${qCounter}`;
 }
+
+// remembers the currently-applied results filter so a Remove action
+// can reload the same filtered view instead of resetting it
+let currentResultsFilter = undefined;
 
 // ---------------- routing ----------------
 function showView(name) {
@@ -36,10 +43,36 @@ function route() {
   if (view === "overview") loadOverview();
   if (view === "tests") loadTests();
   if (view === "students") loadStudents();
-  if (view === "results") loadResults();
+  if (view === "results") loadResults(currentResultsFilter);
 }
 
 window.addEventListener("hashchange", route);
+
+// ---------------- shared confirm modal ----------------
+// Generic "are you sure?" modal reused for deleting a test, removing a
+// student, removing a result, and clearing/deleting multiple tests.
+let confirmAction = null;
+
+function openConfirmModal(title, body, confirmLabel, onConfirm) {
+  document.getElementById("confirmModalTitle").textContent = title;
+  document.getElementById("confirmModalBody").textContent = body;
+  document.getElementById("confirmModalConfirm").textContent = confirmLabel;
+  confirmAction = onConfirm;
+  document.getElementById("confirmModalBackdrop").classList.add("active");
+}
+
+function closeConfirmModal() {
+  document.getElementById("confirmModalBackdrop").classList.remove("active");
+  confirmAction = null;
+}
+
+document.getElementById("confirmModalCancel").addEventListener("click", closeConfirmModal);
+
+document.getElementById("confirmModalConfirm").addEventListener("click", async () => {
+  const action = confirmAction;
+  closeConfirmModal();
+  if (action) await action();
+});
 
 // ---------------- overview ----------------
 async function loadOverview() {
@@ -98,22 +131,78 @@ document.getElementById("ovNewTestBtn").addEventListener("click", () => openTest
 async function loadTests() {
   const wrap = document.getElementById("testsListWrap");
   wrap.innerHTML = `<div class="empty-state"><div class="glyph">⏳</div><p>Loading tests…</p></div>`;
+
   const res = await apiRequest("/exams");
   if (!res.ok) {
     toast(res.error, "error");
     return;
   }
+
   state.exams = res.exams;
+
+  // reset bulk-selection on every fresh load so it never references stale ids
+  state.selectedTests.clear();
+
+  populateCategoryFilter();
+  renderTestsList();
+}
+
+function getFilteredTests() {
+  return state.exams.filter(
+    (t) => !state.testsCategoryFilter || (t.subject || "General") === state.testsCategoryFilter
+  );
+}
+
+function populateCategoryFilter() {
+  const sel = document.getElementById("testsCategoryFilter");
+  const current = sel.value;
+
+  const subjects = Array.from(
+    new Set(state.exams.map((t) => t.subject || "General"))
+  ).sort((a, b) => a.localeCompare(b));
+
+  sel.innerHTML =
+    `<option value="">All categories</option>` +
+    subjects.map((s) => `<option value="${attr(s)}">${escapeHTML(s)}</option>`).join("");
+
+  if (subjects.includes(current)) {
+    sel.value = current;
+    state.testsCategoryFilter = current;
+  } else {
+    sel.value = "";
+    state.testsCategoryFilter = "";
+  }
+}
+
+function renderTestsList() {
+  const wrap = document.getElementById("testsListWrap");
 
   if (!state.exams.length) {
     wrap.innerHTML = emptyState("📘", "No tests yet", "Click \"New test\" to build your first one.");
+    updateBulkBarUI();
+    return;
+  }
+
+  const filtered = getFilteredTests();
+
+  if (!filtered.length) {
+    wrap.innerHTML = emptyState("🔍", "No tests in this category", "Try a different category filter.");
+    updateBulkBarUI();
     return;
   }
 
   wrap.innerHTML = `<div class="test-grid">
-    ${state.exams.map((t) => `
+    ${filtered.map((t) => `
       <div class="test-card">
-        <span class="subject-tag">${escapeHTML(t.subject || "General")}</span>
+        <div class="flex-between" style="margin-bottom:2px;">
+          <input
+            type="checkbox"
+            class="test-select-cb"
+            data-select-test="${t._id}"
+            ${state.selectedTests.has(t._id) ? "checked" : ""}
+          >
+          <span class="subject-tag">${escapeHTML(t.subject || "General")}</span>
+        </div>
         <h3>${escapeHTML(t.title)}</h3>
         <div class="test-meta">
           <span>⏱ ${t.duration} min</span>
@@ -132,32 +221,127 @@ async function loadTests() {
   wrap.querySelectorAll("[data-delete]").forEach((btn) => {
     btn.addEventListener("click", () => confirmDeleteTest(btn.dataset.delete));
   });
+  wrap.querySelectorAll("[data-select-test]").forEach((cb) => {
+    cb.addEventListener("change", () => {
+      const id = cb.dataset.selectTest;
+      if (cb.checked) state.selectedTests.add(id);
+      else state.selectedTests.delete(id);
+      updateBulkBarUI();
+    });
+  });
+
+  updateBulkBarUI();
+}
+
+function updateBulkBarUI() {
+  const filtered = getFilteredTests();
+  const selectedInFiltered = filtered.filter((t) => state.selectedTests.has(t._id));
+
+  const selectAllCb = document.getElementById("testsSelectAll");
+  selectAllCb.checked = filtered.length > 0 && selectedInFiltered.length === filtered.length;
+  selectAllCb.indeterminate =
+    selectedInFiltered.length > 0 && selectedInFiltered.length < filtered.length;
+
+  const clearBtn = document.getElementById("testsClearAllBtn");
+  clearBtn.textContent =
+    state.selectedTests.size > 0 ? `Clear selected (${state.selectedTests.size})` : "Clear all";
+}
+
+document.getElementById("testsCategoryFilter").addEventListener("change", (e) => {
+  state.testsCategoryFilter = e.target.value;
+  renderTestsList();
+});
+
+document.getElementById("testsSelectAll").addEventListener("change", (e) => {
+  const filtered = getFilteredTests();
+
+  if (e.target.checked) {
+    filtered.forEach((t) => state.selectedTests.add(t._id));
+  } else {
+    filtered.forEach((t) => state.selectedTests.delete(t._id));
+  }
+
+  renderTestsList();
+});
+
+document.getElementById("testsClearAllBtn").addEventListener("click", () => {
+  const selectedIds = Array.from(state.selectedTests);
+
+  if (selectedIds.length > 0) {
+    openConfirmModal(
+      "Delete selected tests?",
+      `This will permanently delete ${selectedIds.length} selected test${
+        selectedIds.length === 1 ? "" : "s"
+      }. Past results tied to them will remain in the results log for reference.`,
+      "Delete selected",
+      () => clearTests(selectedIds)
+    );
+    return;
+  }
+
+  const filtered = getFilteredTests();
+
+  if (!filtered.length) {
+    toast("No tests to clear.", "error");
+    return;
+  }
+
+  const label = state.testsCategoryFilter
+    ? `all "${state.testsCategoryFilter}" tests`
+    : "all tests";
+
+  openConfirmModal(
+    "Clear all tests?",
+    `This will permanently delete ${label} (${filtered.length} test${
+      filtered.length === 1 ? "" : "s"
+    }). Past results tied to them will remain in the results log for reference.`,
+    "Clear all",
+    () => clearTests(filtered.map((t) => t._id))
+  );
+});
+
+async function clearTests(ids) {
+  const results = await Promise.all(
+    ids.map((id) => apiRequest(`/exams/${id}`, { method: "DELETE" }))
+  );
+
+  const failed = results.filter((r) => !r.ok);
+
+  if (failed.length) {
+    toast(`${failed.length} of ${ids.length} test${ids.length === 1 ? "" : "s"} couldn't be deleted.`, "error");
+  } else {
+    toast(`Deleted ${ids.length} test${ids.length === 1 ? "" : "s"}.`);
+  }
+
+  state.selectedTests.clear();
+  loadTests();
 }
 
 document.getElementById("testsNewBtn").addEventListener("click", () => openTestForm());
 
-// ---------------- delete modal ----------------
-let pendingDeleteId = null;
+// ---------------- delete single test ----------------
 function confirmDeleteTest(examId) {
-  pendingDeleteId = examId;
-  document.getElementById("deleteModalBackdrop").classList.add("active");
+  const exam = state.exams.find((e) => e._id === examId);
+
+  openConfirmModal(
+    "Delete this test?",
+    `This will permanently delete "${
+      exam ? exam.title : "this test"
+    }". Past results tied to it will remain in the results log for reference.`,
+    "Delete test",
+    async () => {
+      const res = await apiRequest(`/exams/${examId}`, { method: "DELETE" });
+
+      if (!res.ok) {
+        toast(res.error, "error");
+        return;
+      }
+
+      toast("Test deleted.");
+      loadTests();
+    }
+  );
 }
-document.getElementById("deleteModalCancel").addEventListener("click", () => {
-  pendingDeleteId = null;
-  document.getElementById("deleteModalBackdrop").classList.remove("active");
-});
-document.getElementById("deleteModalConfirm").addEventListener("click", async () => {
-  if (!pendingDeleteId) return;
-  const res = await apiRequest(`/exams/${pendingDeleteId}`, { method: "DELETE" });
-  document.getElementById("deleteModalBackdrop").classList.remove("active");
-  if (!res.ok) {
-    toast(res.error, "error");
-    return;
-  }
-  toast("Test deleted.");
-  pendingDeleteId = null;
-  loadTests();
-});
 
 // ---------------- test form (create / edit) ----------------
 function openTestForm(examId) {
@@ -323,16 +507,25 @@ document.getElementById("tfImportInput").addEventListener("change", async (e) =>
     let added = 0;
     const skipped = [];
 
+    if (
+      state.formQuestions.length === 1 &&
+      !state.formQuestions[0].text.trim() &&
+      state.formQuestions[0].options.every((o) => !o.trim())
+    ) {
+      state.formQuestions = [];
+    }
+
     rows.forEach((row, idx) => {
       const parsed = parseImportRow(row);
+
       if (parsed.error) {
         skipped.push(`Row ${idx + 2}: ${parsed.error}`);
         return;
       }
+
       state.formQuestions.push(parsed.question);
       added += 1;
     });
-
     renderQuestions();
 
     if (added > 0) {
@@ -403,7 +596,7 @@ async function loadStudents() {
   }
 
   wrap.innerHTML = `<div class="table-wrap"><table>
-    <thead><tr><th>Name</th><th>Email</th><th>Attempts</th><th>Average</th><th>Joined</th></tr></thead>
+    <thead><tr><th>Name</th><th>Email</th><th>Attempts</th><th>Average</th><th>Joined</th><th></th></tr></thead>
     <tbody>
       ${state.students.map((s) => `
         <tr>
@@ -412,13 +605,43 @@ async function loadStudents() {
           <td>${s.attempts}</td>
           <td>${pctBadge(s.average)}</td>
           <td>${formatDate(s.createdAt)}</td>
+          <td><button class="btn btn-danger btn-sm" data-remove-student="${s._id}">Remove</button></td>
         </tr>`).join("")}
     </tbody>
   </table></div>`;
+
+  wrap.querySelectorAll("[data-remove-student]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const id = btn.dataset.removeStudent;
+      const student = state.students.find((s) => s._id === id);
+      confirmRemoveStudent(id, student ? student.name : "this student");
+    });
+  });
+}
+
+function confirmRemoveStudent(studentId, studentName) {
+  openConfirmModal(
+    "Remove this student?",
+    `This will permanently remove ${studentName}'s account. This can't be undone.`,
+    "Remove",
+    async () => {
+      const res = await apiRequest(`/students/${studentId}`, { method: "DELETE" });
+
+      if (!res.ok) {
+        toast(res.error, "error");
+        return;
+      }
+
+      toast("Student removed.");
+      loadStudents();
+    }
+  );
 }
 
 // ---------------- results ----------------
 async function loadResults(examFilter) {
+  currentResultsFilter = examFilter;
+
   const wrap = document.getElementById("resultsWrap");
   wrap.innerHTML = `<div class="empty-state"><div class="glyph">⏳</div><p>Loading results…</p></div>`;
 
@@ -437,6 +660,10 @@ async function loadResults(examFilter) {
     filterSelect.dataset.populated = "true";
   }
 
+  if (examFilter !== undefined) {
+    filterSelect.value = examFilter || "";
+  }
+
   const query = examFilter ? `?examId=${examFilter}` : "";
   const res = await apiRequest(`/results${query}`);
   if (!res.ok) {
@@ -451,7 +678,7 @@ async function loadResults(examFilter) {
   }
 
   wrap.innerHTML = `<div class="table-wrap"><table>
-    <thead><tr><th>Student</th><th>Test</th><th>Score</th><th>Marks</th><th>Submitted</th></tr></thead>
+    <thead><tr><th>Student</th><th>Test</th><th>Score</th><th>Marks</th><th>Submitted</th><th></th></tr></thead>
     <tbody>
       ${state.results.map((r) => `
         <tr>
@@ -460,9 +687,33 @@ async function loadResults(examFilter) {
           <td>${pctBadge(Math.round((r.score / (r.totalMarks || 1)) * 100))}</td>
           <td>${r.score} / ${r.totalMarks}</td>
           <td>${formatDate(r.submittedAt)}</td>
+          <td><button class="btn btn-danger btn-sm" data-remove-result="${r._id}">Remove</button></td>
         </tr>`).join("")}
     </tbody>
   </table></div>`;
+
+  wrap.querySelectorAll("[data-remove-result]").forEach((btn) => {
+    btn.addEventListener("click", () => confirmRemoveResult(btn.dataset.removeResult));
+  });
+}
+
+function confirmRemoveResult(resultId) {
+  openConfirmModal(
+    "Remove this result?",
+    "This will permanently remove this attempt from the results log. This can't be undone.",
+    "Remove",
+    async () => {
+      const res = await apiRequest(`/results/${resultId}`, { method: "DELETE" });
+
+      if (!res.ok) {
+        toast(res.error, "error");
+        return;
+      }
+
+      toast("Result removed.");
+      loadResults(currentResultsFilter);
+    }
+  );
 }
 
 document.getElementById("resultsFilter").addEventListener("change", (e) => {
