@@ -1,6 +1,6 @@
 
 
-const API_BASE = "https://voltexam.onrender.com/api";
+const API_BASE = "https://voltexam.onrender.com/";
 const CURRENT_USER_KEY = "volt_current_user";
 
 // ---------------- low-level API helper ----------------
